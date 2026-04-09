@@ -1,0 +1,85 @@
+SMSRadar RAG Dərsi (OpenRouter + ChromaDB + FastAPI)
+
+Mərhələ 1 — Data analizi
+Məqsəd: CSV strukturunu başa düşmək və RAG üçün doğru sənəd formatını seçmək.
+1) Fayl: all_questions.csv
+2) Sütunlar: user_id, question, reply, date
+3) Sənəd formatı qərarı:
+   - Embedding mətni: "Sual: {question}\nCavab: {reply}"
+   - Metadata: user_id, date, question
+Nəticə: Hər sətr bir RAG sənədidir.
+
+Mərhələ 1.1 — Data təmizləmə
+Məqsəd: şəxsi əlaqə məlumatlarını minimallaşdırmaq.
+1) `python -m scripts.clean_csv` komandasını işə sal.
+2) Çıxış faylı: `all_questions_clean.csv`
+3) Yalnız `question` və `reply` sütunları saxlanılır, əlaqə nömrələri mətndən silinir.
+
+Mərhələ 2 — Konfiqurasiya və env
+Məqsəd: Modelləri və xərclə bağlı limitləri kod dəyişmədən idarə etmək.
+İstifadə olunan env dəyişənləri:
+- OPENROUTER_API_KEY
+- EMBEDDING_MODEL (default: openai/text-embedding-3-large)
+- CHAT_MODEL (default: openai/gpt-oss-120b)
+- INGEST_BATCH_SIZE, TOP_K, MAX_CONTEXT_CHARS, CHAT_MAX_TOKENS, CHAT_TEMPERATURE
+
+Niyə vacibdir:
+- Model dəyişmək üçün kodu redaktə etmirsən.
+- API xərci və token istifadəsi env üzərindən idarə olunur.
+
+Mərhələ 3 — Ingestion + Embedding
+Məqsəd: CSV-dən vektor bazası yaratmaq.
+Axın:
+1) CSV oxunur (utf-8-sig ilə BOM problemi aradan qalxır).
+2) Hər sətr üçün stabil doc_id (SHA1) yaradılır.
+3) ChromaDB-də həmin id varsa, yenidən embedding edilmir (idempotent ingest).
+4) Yalnız yeni sənədlər batch-lərlə OpenRouter embedding endpoint-ə göndərilir.
+5) Embedding + metadata ChromaDB kolleksiyasına yazılır.
+
+Komanda:
+python -m scripts.ingest
+
+Mərhələ 4 — Retrieval + Generation
+Məqsəd: İstifadəçi sualına kontekstli cavab qaytarmaq.
+Axın:
+1) Sual üçün embedding alınır.
+2) ChromaDB-dən top-k uyğun sənəd götürülür.
+3) Kontekst max simvol limitinə qədər yığılır.
+4) Qısa sistem promptu + kontekst + sual chat modelinə göndərilir.
+5) Cavabla birlikdə mənbələr qaytarılır.
+
+Mərhələ 5 — Veb chatbot
+Məqsəd: Sadə, işlək chat interfeysi.
+1) FastAPI endpointləri:
+   - GET /api/health
+   - POST /api/chat
+2) Frontend:
+   - web/index.html və web/app.js
+   - İstifadəçi mesajı göndərir, cavab və ilk 3 mənbə görünür.
+   - Dark/Light mode toggle ilə daha rahat istifadə təcrübəsi verilir.
+
+Mərhələ 6 — İşə salma
+1) Virtual environment qur:
+   python -m venv .venv
+   source .venv/bin/activate
+2) Paketləri quraşdır:
+   pip install -r requirements.txt
+3) .env hazırla:
+   cp .env.example .env
+   OPENROUTER_API_KEY daxil et
+4) Təmiz CSV yarat:
+   python -m scripts.clean_csv
+5) Ingestion:
+   python -m scripts.ingest
+6) Server:
+   uvicorn app.main:app --reload
+7) Brauzer:
+   http://localhost:8000
+
+Mərhələ 7 — Xərc optimizasiyası qaydaları
+1) Ingest-i təkrar işlətmək təhlükəsizdir, mövcud sənədlər skip olunur.
+2) TOP_K-ni aşağı saxla (məs: 3-5).
+3) MAX_CONTEXT_CHARS və CHAT_MAX_TOKENS limitlərini yüksək etmə.
+4) Yalnız lazım olduqda daha bahalı modelə keç.
+5) Retrieval boş/zəif olanda local fallback işləyir; yüksək uyğunluqda cavab birbaşa dataset-dən qaytarılır (chat xərci olmur).
+6) Jarqon/translit sorğular üçün (məs: `protiv`, `qirmizi`) normallaşdırma tətbiq olunur ki, standart AZ terminləri ilə eyni intentə düşsün.
