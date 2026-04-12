@@ -21,6 +21,24 @@ SLANG_PATTERNS: tuple[tuple[str, str], ...] = (
     (r"\bshtraf\b", " cərimə "),
 )
 
+GREETING_PHRASES: set[str] = {
+    "salam",
+    "salamlar",
+    "salam aleykum",
+    "salam aleyküm",
+    "selam",
+    "selam aleykum",
+    "selam aleyküm",
+    "hello",
+    "hi",
+    "hey",
+    "sabahiniz xeyir",
+    "sabahınız xeyir",
+    "axshaminiz xeyir",
+    "axşamınız xeyir",
+    "hər vaxtınız xeyir",
+}
+
 
 def _build_context(documents: list[str], max_chars: int) -> str:
     blocks: list[str] = []
@@ -224,6 +242,12 @@ def _is_context_intent(text: str) -> bool:
     return "konteks" in q or "kontekst" in q
 
 
+def _is_greeting_intent(text: str) -> bool:
+    normalized = _normalize_text(text)
+    phrase = " ".join(re.findall(r"\w+", normalized))
+    return phrase in GREETING_PHRASES
+
+
 def _format_context_overview(sources: list[dict[str, Any]]) -> str:
     if not sources:
         return "Hazırda cavab üçün istifadə olunan kontekst tapılmadı."
@@ -234,6 +258,13 @@ def _format_context_overview(sources: list[dict[str, Any]]) -> str:
 
 
 def answer_query(user_question: str, top_k: int | None = None) -> dict[str, Any]:
+    if _is_greeting_intent(user_question):
+        return {
+            "answer": "Salam! Mən yol hərəkəti qaydaları üzrə köməkçiyəm. Sualınızı yazın, dəqiq cavab verim.",
+            "sources": [],
+            "mode": "greeting",
+        }
+
     k = top_k or settings.top_k
     docs: list[str] = []
     metas: list[dict[str, Any]] = []
