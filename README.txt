@@ -1,6 +1,6 @@
 SMSRadar RAG Chatbot
 
-Bu layihə `all_questions.csv` məlumat bazasından istifadə edən, OpenRouter üzərində işləyən və Azərbaycan dilində YHQ suallarına cavab verən RAG chatbotudur.
+Bu layihə `all_questions_clean.csv` məlumat bazasından istifadə edən, OpenRouter üzərində işləyən və Azərbaycan dilində YHQ suallarına cavab verən RAG chatbotudur.
 
 Əsas xüsusiyyətlər:
 - OpenRouter embedding modeli: `openai/text-embedding-3-large`
@@ -46,6 +46,7 @@ Coolify deploy:
 2) Coolify-da Application yarat və repo-nu seç.
 3) Dockerfile ilə build et.
 4) Env dəyişənlərini daxil et (`.env.example` əsas götür).
+   - `CSV_PATH=all_questions_clean.csv` olmalıdır (köhnə `all_questions.csv` dəyərindən istifadə etməyin).
 5) Persistent volume mount et: `/app/data/chroma`
 6) İlk deploymentdan sonra Console-da bir dəfə:
    - `python -m scripts.ingest`

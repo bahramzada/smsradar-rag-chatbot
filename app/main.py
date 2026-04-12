@@ -7,6 +7,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from app.ingest import CsvDataUnavailableError
 from app.rag import answer_query
 from app.vector_store import get_collection
 
@@ -36,4 +37,7 @@ def chat(payload: ChatRequest) -> dict:
     question = payload.message.strip()
     if not question:
         raise HTTPException(status_code=400, detail="Message is empty.")
-    return answer_query(question, payload.top_k)
+    try:
+        return answer_query(question, payload.top_k)
+    except CsvDataUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
